@@ -1,0 +1,457 @@
+<head>
+        <html>
+        <!-- Utility libraries: Tailwind for quick styling, SweetAlert2 for nicer modal dialogs -->
+        <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+        <title>Yahtzee</title>
+    </head>
+    <body class="bg-zinc-700">
+        <!-- Page header/title -->
+        <p class="font-mono text-6xl text-neutral-50 text-center">Yahtzee Game</p>
+
+        <!-- Centered start button. Clicking calls start_game() which sets up the canvas UI. -->
+        <div class="flex justify-center py-10">
+            <button id="startGameBtn" onclick="start_game()" class="bg-zinc-700 cursor-pointer text-3xl text-neutral-50">Start Game</button><br>
+            <br>&nbsp;<br>
+        </div>
+
+        <!-- Canvas used for the entire game UI (dice, buttons, borders, text). -->
+        <div class="flex justify-center">
+            <canvas id="gameCanvas" width="1820" height="800" class="bg-zinc-700"></canvas>
+        </div>
+    </body>
+    <script>
+        /*
+         Core canvas setup and game state.
+         - `canvas`/`ctx`: drawing surface
+         - `storedData`: keeps track of rolls, rounds, whether input is enabled, and the scorecard
+         - `selected`: map tracking which dice the player is holding (kept between rolls)
+         - `sval`: current numeric values of the five dice (indices 0..4)
+         - `buttons`: array of interactive button definitions (position + behavior)
+        */
+        let canvas = document.getElementById("gameCanvas");
+        let ctx = canvas.getContext("2d");
+
+        let storedData = {
+            // Number of rolls used in the current turn (0..3)
+            rolls: 0,
+            // Whether a round is in progress (used to gate dice selection)
+            gameState: false,
+            // Whether UI input (button clicks / dice toggles) should be processed
+            inputEnabled: true,
+            // Current round number (1..13)
+            currentRound: 1,
+            // Score table: upper and lower sections follow standard Yahtzee categories
+            scoring: {
+                upper: {
+                    ones: null,
+                    twos: null,
+                    threes: null,
+                    fours: null,
+                    fives: null,
+                    sixes: null,
+                },
+                lower: {
+                    threeOfAKind: null,
+                    fourOfAKind: null,
+                    fullHouse: null,
+                    smallStraight: null,
+                    largeStraight: null,
+                    yahtzee: null,
+                    chance: null,
+                }
+            }
+        }
+
+        // Which dice indices are currently held by the player (object used as set)
+        let selected = {}
+        // Current dice face values: sval[0]..sval[4]
+        let sval = {}
+
+        // Define UI buttons (position is used for click detection). Each button has a `run` method.
+        let buttons = [
+            {
+                type: "roll",
+                position: {
+                    x: canvas.width / 2 - 32,
+                    y: 150
+                },
+                run: () => {
+                    roll_dice();
+                }
+            }
+        ]
+
+        /**
+         * start_game
+         * - Hides the start button and draws the initial board state.
+         * - Adds a small hint to the user about how to roll.
+         */
+        function start_game(){
+            document.getElementById("startGameBtn").outerHTML = ""; // remove start button
+            draw_board()
+            ctx.fillStyle = "white";
+            ctx.font = "24px Arial";
+            ctx.fillText("^",  canvas.width / 2 - 5 , 230);
+            ctx.fillText("Press to Roll",  canvas.width / 2 - 70, 250);
+        }
+
+        /**
+         * draw_board
+         * - Clears the canvas and redraws the empty dice slots, the roll button, and status text.
+         */
+        function draw_board(){
+            // clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw five dice slots (initially empty or showing their current value)
+            for(let i = 0; i < 5; i++){
+                drawDice(0, canvas.width / 2 - 166 + i * 70, 50);
+            }
+
+            // Draw each defined button (images are loaded by drawBtn)
+            buttons.forEach(btn => {
+                drawBtn(btn.type, btn.position.x, btn.position.y);
+            });
+
+            // Status text: rolls left and current round
+            ctx.fillStyle = "white";
+            ctx.font = "24px Arial";
+            ctx.fillText(`Rolls Left: ${3 - storedData.rolls}`,  canvas.width / 2 - 70 , 275);
+            ctx.fillText(`Round: ${storedData.currentRound} / 13`,  canvas.width / 2 - 70 , 20);
+
+        }
+
+        /**
+         * drawDice
+         * - Draws the image for a die face. If `value` is falsy or out of range, draws a default/empty die.
+         * - This uses <img> loading; repeated draws will re-use the browser cache for the same src.
+         */
+        function drawDice(value, x, y) {
+            let diceFN = ""
+            if(value < 1 || value > 6 || !value) diceFN = "img/Dice Types/Normal/Dice_Default.png";
+            else diceFN = `img/Dice Types/Normal/Dice_${value}.png`;
+            let img = new Image();
+            img.src = diceFN;
+            img.onload = function() {
+                ctx.drawImage(img, x, y, 64, 64);
+            }
+        }
+
+        /**
+         * roll_dice
+         * - Handles the main rolling logic and end-of-turn scoring flow.
+         * - If the player has already rolled 3 times, shows the scoring dialog and resets for the next turn.
+         * - Otherwise performs a roll for any dice that are not `selected` (held).
+         */
+        function roll_dice(){
+            storedData.gameState = true;
+
+            // If we've already used 3 rolls this turn, force scoring and prepare next turn
+            if(storedData.rolls >= 3){
+                storedData.inputEnabled = false; // temporarily block input while scoring UI is open
+                let dL = [sval[0], sval[1], sval[2], sval[3], sval[4]];
+                dL = dL.sort((a, b) => a - b);
+
+                // Show a modal explaining no rolls remain; then run scoring logic in the confirmation handler
+                Swal.fire({
+                    backdrop: true,
+                    background: '#3f3f46',
+                    icon: 'error',
+                    title: 'No Rolls Left',
+                    allowOutsideClick: false,
+                    hideOnOverlayClick: false,
+                    hideOnContentClick: false,
+                    closeClick: false,
+                    helpers: {
+                        overlay: { closeClick: false } 
+                    },
+                    closeOnOutsideClick: false,
+
+                    color: 'white',
+                    text: 'You have used all your rolls for this turn.',
+                    html: `<p>You rolled: ${dL.join(", ")}</p>
+                           <p>Click "OK" to go to scoring.</p>`,
+                }).then((result) => {
+                    if(result.isConfirmed) {
+                        // Determine which lower-section options are valid based on current dice
+
+                        let possibilities = {lower:{
+                            threeOfAKind: false,
+                            fourOfAKind: false,
+                            fullHouse: false,
+                            smallStraight: false,
+                            largeStraight: false,
+                            yahtzee: false,
+                            chance: true,
+                        }}
+
+                        // Count how many of each face we have (e.g. {1:2, 4:3})
+                        let counts = {};
+                        dL.forEach(num => {
+                            counts[num] = (counts[num] || 0) + 1;
+                        });
+
+                        // Evaluate presence of 3/4/5 of a kind and full house
+                        let countValues = Object.values(counts);
+                        if(countValues.some(count => count >= 3)) possibilities.lower.threeOfAKind = true;
+                        if(countValues.some(count => count >= 4)) possibilities.lower.fourOfAKind = true;
+                        if(countValues.includes(3) && countValues.includes(2)) possibilities.lower.fullHouse = true;
+                        if(countValues.some(count => count == 5)) possibilities.lower.yahtzee = true;
+
+                        // Check for straights using the unique sorted set of faces
+                        let uniqueSorted = [...new Set(dL)].sort((a, b) => a - b);
+                        let straights = [
+                            [1, 2, 3, 4],
+                            [2, 3, 4, 5],
+                            [3, 4, 5, 6]
+                        ];
+                        for(let straight of straights){
+                            if(straight.every(num => uniqueSorted.includes(num))){
+                                possibilities.lower.smallStraight = true;
+                                break;
+                            }
+                        }
+                        let largeStraights = [
+                            [1, 2, 3, 4, 5],
+                            [2, 3, 4, 5, 6]
+                        ];
+                        for(let straight of largeStraights){
+                            if(straight.every(num => uniqueSorted.includes(num))){
+                                possibilities.lower.largeStraight = true;
+                                break;
+                            }
+                        }
+
+                        // Build the options object for the SweetAlert select input. It includes both
+                        // upper and lower section choices and shows the points the player would score.
+                        let optns = {"Upper Section": {
+                                    ones: `Ones (${dL.filter(r => r == 1).length * 1} pts)`,
+                                    twos: `Twos (${dL.filter(r => r == 2).length * 2} pts)`,
+                                    threes: `Threes (${dL.filter(r => r == 3).length * 3} pts)`,
+                                    fours: `Fours  (${dL.filter(r => r == 4).length * 4} pts)`,
+                                    fives: `Fives (${dL.filter(r => r == 5).length * 5} pts)`,
+                                    sixes: `Sixes (${dL.filter(r => r == 6).length * 6} pts)`,
+                                },
+                                "Lower Section": {
+                                    threeOfAKind: `Three of a Kind (${possibilities.lower.threeOfAKind == true ? dL.reduce((a, b) => a + b, 0) : 0} pts)`,
+                                    fourOfAKind: `Four of a Kind (${possibilities.lower.fourOfAKind == true ? dL.reduce((a, b) => a + b, 0) : 0} pts)`,
+                                    fullHouse: `Full House (${possibilities.lower.fullHouse == true ? "25" : "0"} pts)`,
+                                    smallStraight: `Small Straight (${possibilities.lower.smallStraight == true ? "30" : "0"} pts)`,
+                                    largeStraight: `Large Straight (${possibilities.lower.largeStraight == true ? "40" : "0"} pts)`,
+                                    yahtzee: `Yahtzee (${possibilities.lower.yahtzee == true ? "50" : "0"} pts)`,
+                                    chance: `Chance (${dL.reduce((a, b) => a + b, 0)} pts)`,
+                                }}
+
+                        // Remove any scoring options already taken on the scorecard so the player cannot reselect them
+                        if(storedData.scoring.upper.ones != null) delete optns["Upper Section"].ones;
+                        if(storedData.scoring.upper.twos != null) delete optns["Upper Section"].twos;
+                        if(storedData.scoring.upper.threes != null) delete optns["Upper Section"].threes;
+                        if(storedData.scoring.upper.fours != null) delete optns["Upper Section"].fours;
+                        if(storedData.scoring.upper.fives != null) delete optns["Upper Section"].fives;
+                        if(storedData.scoring.upper.sixes != null) delete optns["Upper Section"].sixes;
+                        if(storedData.scoring.lower.threeOfAKind != null) delete optns["Lower Section"].threeOfAKind;
+                        if(storedData.scoring.lower.fourOfAKind != null) delete optns["Lower Section"].fourOfAKind;
+                        if(storedData.scoring.lower.fullHouse != null) delete optns["Lower Section"].fullHouse;
+                        if(storedData.scoring.lower.smallStraight != null) delete optns["Lower Section"].smallStraight;
+                        if(storedData.scoring.lower.largeStraight != null) delete optns["Lower Section"].largeStraight;
+                        if(storedData.scoring.lower.yahtzee != null) delete optns["Lower Section"].yahtzee;
+                        if(storedData.scoring.lower.chance != null) delete optns["Lower Section"].chance;
+
+                        // Helper to show the scoring pick dialog and store the chosen score
+                        function pickScr() {
+                            Swal.fire({
+                            backdrop: true,
+                            background: '#3f3f46',
+                            theme: 'dark',
+                            color: 'white',
+                            title: "Pick how you want to score.",
+                            input: "select",
+                            inputOptions: optns,
+                            inputPlaceholder: "Select a scoring option",
+                            showCancelButton: false,
+                            confirmButtonText: "Score",
+                            allowOutsideClick: false,
+                        }).then((result) => {
+                            let choice = result.value;
+                            // If user didn't choose anything, prompt again
+                            if(choice == '' ){
+                                Swal.fire({
+                                    backdrop: true,
+                                    background: '#3f3f46',
+                                    color: 'white',
+                                    title: "No Selection Made",
+                                    text: "You did not select a scoring option. Please try again.",
+                                    icon: "error",
+                                    allowOutsideClick: false,
+                                }).then(() => {
+                                    pickScr();
+                                });
+                                
+                                storedData.inputEnabled = true;
+                                return;
+                            }
+
+                            // Determine whether the choice maps to the upper or lower section
+                            let section = choice in storedData.scoring.upper ? "Upper Section" : "Lower Section";
+                            // Extract numeric points from the option string (format created above)
+                            let pts = optns[section][choice].split(" (")[1].split(" pts")[0];
+                            // Store score in the appropriate section
+                            if(section == "Upper Section"){
+                                storedData.scoring.upper[choice] = parseInt(pts);
+                            } else {
+                                storedData.scoring.lower[choice] = parseInt(pts);
+                            }
+
+                            Swal.fire({
+                                backdrop: true,
+                                background: '#3f3f46',
+                                color: 'white',
+                                title: "Scored!",
+                                html: `You scored ${pts} points for ${choice}.<br>
+                                       Click OK to start the next turn.`,
+                                icon: "success",
+                                allowOutsideClick: false,
+                            }).then(() => {
+                                // reset rolls left
+                                storedData.rolls = 0;
+                                // clear selected dice
+                                selected = {};
+
+                                storedData.currentRound += 1;
+                                if(storedData.currentRound > 13){
+                                    // Game over condition
+                                    Swal.fire({
+                                        backdrop: true,
+                                        background: '#3f3f46',
+                                        color: 'white',
+                                        title: "Game Over",
+                                        html: "You have completed all 13 rounds of Yahtzee!<br><br>Your final scores:<br>" +
+                                              `<b>Ones:</b> ${storedData.scoring.upper.ones || 0} pts<br>` +
+                                              `<b>Twos:</b> ${storedData.scoring.upper.twos || 0} pts<br>` +
+                                              `<b>Threes:</b> ${storedData.scoring.upper.threes || 0} pts<br>` +
+                                              `<b>Fours:</b> ${storedData.scoring.upper.fours || 0} pts<br>` +
+                                              `<b>Fives:</b> ${storedData.scoring.upper.fives || 0} pts<br>` +
+                                              `<b>Sixes:</b> ${storedData.scoring.upper.sixes || 0} pts<br>` +
+                                              `<b>Three of a Kind:</b> ${storedData.scoring.lower.threeOfAKind || 0} pts<br>` +
+                                              `<b>Four of a Kind:</b> ${storedData.scoring.lower.fourOfAKind || 0} pts<br>` +
+                                              `<b>Full House:</b> ${storedData.scoring.lower.fullHouse || 0} pts<br>` +
+                                              `<b>Small Straight:</b> ${storedData.scoring.lower.smallStraight || 0} pts<br>` +
+                                              `<b>Large Straight:</b> ${storedData.scoring.lower.largeStraight || 0} pts<br>` +
+                                              `<b>Yahtzee:</b> ${storedData.scoring.lower.yahtzee || 0} pts<br>` +
+                                              `<b>Chance:</b> ${storedData.scoring.lower.chance || 0} pts<br><br>` +
+                                              `<b>Total Score:</b> ${Object.values(storedData.scoring.upper).filter(v => v != null).reduce((a, b) => a + b, 0) + 
+                                                                  Object.values(storedData.scoring.lower).filter(v => v != null).reduce((a, b) => a + b, 0)} pts`,
+                                        icon: "info",
+                                        allowOutsideClick: false,
+                                    });
+                                    storedData.inputEnabled = false;
+                                    return;
+                                }else{
+                                // clear current dice values
+                                draw_board();
+                            }});
+                            storedData.inputEnabled = true;
+                        })
+                        }
+
+                        // Show scoring picker and after the player confirms scoring, reset the turn
+                        // and check for end-of-game. This keeps the scoring modal active until the
+                        // player has made their selection (fixes final-round immediate Game Over).
+                        pickScr();
+                    }else{
+                        // If Swal was closed or not confirmed, nothing else to do here
+                    }
+                });
+                return;
+            }else{
+                // Perform a roll for all non-selected dice
+                storedData.rolls += 1;
+                draw_board();
+                for(let i = 0; i < 5; i++){
+                    if(selected[i]) {
+                        // If die is held, visually show an outline and keep its value
+                        ctx.strokeStyle = "#8a0e1c";
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(canvas.width / 2 - 166 + i * 70 -2.5, 47.5, 68, 68);
+                        drawDice(sval[i], canvas.width / 2 - 166 + i * 70, 50);    
+                        continue;
+                    }
+                    // Random roll 1..6
+                    let roll = Math.floor(Math.random() * 6) + 1;
+                    sval[i] = roll;
+                    drawDice(roll, canvas.width / 2 - 166 + i * 70, 50);
+                }
+
+                // If we just used the 3rd roll, schedule the scoring call shortly after to show the modal
+                if(storedData.rolls == 3) {
+                    setTimeout(() => {roll_dice()},500)
+                }
+                return true;
+            }
+        }
+        function draw_shop(){
+            // clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        }
+        /**
+         * drawBtn
+         * - Draws a button image at the requested x/y. `value` maps to an image file name.
+         */
+        function drawBtn(value, x, y) {
+            let BtnFN = ``
+            BtnFN = `img/btn_${value}.png`;
+            let img = new Image();
+            img.src = BtnFN;
+            img.onload = function() {
+                ctx.drawImage(img, x, y, 64, 64);
+            }
+        }
+
+        // Detect button click: map a canvas click to any defined button's rectangle and run it
+        canvas.addEventListener('click', function(event) {
+            let rect = canvas.getBoundingClientRect();
+            let x = event.clientX - rect.left;
+            let y = event.clientY - rect.top;
+
+            buttons.forEach(btn => {
+                if (x >= btn.position.x && x <= btn.position.x + 64 &&
+                    y >= btn.position.y && y <= btn.position.y + 64) {
+                        if(storedData.inputEnabled != true) return; 
+                    btn.run();
+                }
+            });
+        });
+
+        // Detect dice clicks: allow holding/releasing dice when a round is active
+        canvas.addEventListener('click', function(event) {
+            let rect = canvas.getBoundingClientRect();
+            let x = event.clientX - rect.left;
+            let y = event.clientY - rect.top;
+            
+            if(storedData.gameState != true) return; // ignore clicks when not in a round
+
+            for(let i = 0; i < 5; i++){
+                if(x >= canvas.width / 2 - 166 + i * 70 && x <= canvas.width / 2 - 166 + i * 70 + 64 &&
+                   y >= 50 && y <= 50 + 64){
+                    // Toggle selection for the clicked die
+                    if(selected[i]){
+                        delete selected[i];
+                        // remove outline around dice by redrawing a background-colored stroke
+                        for(let j = 0; j < 100; j++) {
+                        ctx.strokeStyle = "#3f3f46";
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(canvas.width / 2 - 166 + i * 70 -2.5, 47.5, 68, 68);
+                        }
+                    } else {
+                        selected[i] = true;
+                        ctx.strokeStyle = "#8a0e1c";
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(canvas.width / 2 - 166 + i * 70 -2.5, 47.5, 68, 68);
+                    }
+                }
+            }
+        })
+    </script>
+</html>
