@@ -12,25 +12,6 @@
                 margin: 0;
                 padding: 0;
             }
-            body {
-                width: 100vw;
-                height: 100vh;
-                margin: 0;
-                padding: 0;
-            }
-            #gameCanvas {
-                display: block;
-                width: 100%;
-                height: 100%;
-                max-width: 100%;
-                max-height: 100%;
-            }
-            canvas {
-                image-rendering: pixelated;
-                image-rendering: crisp-edges;
-                margin: 0;
-                padding: 0;
-            }
 
         </style>
         <!--Max Score Base Game = 390-->
@@ -55,7 +36,9 @@
         </div>
 
         <!-- Canvas used for the entire game UI (dice, buttons, borders, text). -->
-        <canvas id="gameCanvas" class="bg-zinc-700"></canvas>
+        <div class="flex justify-center">
+            <canvas id="gameCanvas" width="1820" height="1000" class="bg-zinc-700"></canvas>
+        </div>
     </body>
     <script>
         /*
@@ -68,36 +51,6 @@
         */
         let canvas = document.getElementById("gameCanvas");
         let ctx = canvas.getContext("2d");
-        let gameStarted = false; // Track if the game has been started
-        
-        // Set up responsive canvas
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            
-            // Update button positions for new canvas size
-            if (typeof buttons !== 'undefined' && buttons && buttons.length > 0) {
-                buttons[0].position.x = window.innerWidth / 2 - 32;
-                buttons[0].position.y = 150;
-            }
-            
-            // Redraw if game is already started
-            if (gameStarted && typeof shop_state !== 'undefined') {
-                if (shop_state) {
-                    redraw_shop();
-                } else {
-                    draw_board();
-                    ctx.fillStyle = "white";
-                    ctx.font = "24px Arial";
-                    ctx.fillText("^", canvas.width / 2 - 5, 230);
-                    ctx.fillText("Press to Roll", canvas.width / 2 - 70, 250);
-                }
-            }
-        }
-        
-        // Handle canvas resizing on window resize
-        window.addEventListener('resize', resizeCanvas);
-        
         // Sets shop state to be off
         let shop_state = false;
         let currency = 250;
@@ -174,7 +127,7 @@
         if(window.localStorage.shop_state != null){
             shop_state = window.localStorage.shop_state === 'true';
         } else {
-            window.localStorage.shop_state = 'false';
+            window.localStorage.shop_state == 'false';
         }
 
         // sval
@@ -252,18 +205,27 @@
          * - Adds a small hint to the user about how to roll.
          */
         function start_game(){
-            gameStarted = true; // Mark game as started for responsive rendering
-            shop_state = false; // Always ensure we're not in shop mode when starting game
-            resizeCanvas(); // Size the canvas and set up button positions
             document.getElementById("startGameBtn").outerHTML = ""; // remove start button
             document.getElementById("resetGameBtn").outerHTML = ""; // remove reset button
             document.getElementById("block").outerHTML = ""; // remove surrounding div
-            
-            draw_board();
-            ctx.fillStyle = "white";
-            ctx.font = "24px Arial";
-            ctx.fillText("^",  canvas.width / 2 - 5 , 230);
-            ctx.fillText("Press to Roll",  canvas.width / 2 - 70, 250);
+            // make canvas fit screen on x
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight - 0;
+
+            if(shop_state == true) shop_state = false;
+
+            if(shop_state == true){
+                draw_shop();
+                return;
+            }else{
+                draw_board();
+                ctx.fillStyle = "white";
+                ctx.font = "24px Arial";
+                ctx.fillText("^",  canvas.width / 2 - 5 , 230);
+                ctx.fillText("Press to Roll",  canvas.width / 2 - 70, 250);
+            }
+
+            //draw_shop();
         }
 
         /**
@@ -271,6 +233,9 @@
          * - Clears the canvas and redraws the empty dice slots, the roll button, and status text.
          */
         function draw_board(){
+            // reset canvas size
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight - 0;
             // clear canvas
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -308,12 +273,7 @@
             let img = new Image();
             img.src = diceFN;
             img.onload = function() {
-                // Guard check to prevent drawing if shop state has changed
-                if(shop_state === true) {
-                    ctx.drawImage(img, x, y, 64*sf, 64*sf);
-                } else if(shop_state === false && gameStarted === true) {
-                    ctx.drawImage(img, x, y, 64*sf, 64*sf);
-                }
+                ctx.drawImage(img, x, y, 64*sf, 64*sf);
             }
         }
 

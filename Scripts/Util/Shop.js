@@ -5,6 +5,7 @@ function exitShop() {
 }
 
 function reopenShop() {
+    cachedShopItems = []; // Clear cache to generate new items on reroll
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     draw_shop();
 }

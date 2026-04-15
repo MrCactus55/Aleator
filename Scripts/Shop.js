@@ -1,4 +1,5 @@
 let pendingDelELs = [];
+let cachedShopItems = []; // Cache shop items to prevent reroll on resize
 
 function draw_shop(){
     // clear canvas
@@ -34,31 +35,43 @@ function draw_shop(){
       let img = new Image();
       img.src = imgSrc;
       img.onload = function() {
-        ctx.drawImage(img, x + (w - img.width) / 2, y + 20);
+        // Only draw if we're still in the shop
+        if(shop_state === true) {
+          ctx.drawImage(img, x + (w - img.width) / 2, y + 20);
+        }
       }
-      text(`$${price.toFixed(2)}`, x + w / 2, y + h - 80, 24, "#ffffff", "center");
+      text(`$${price.toFixed(2)}`, x + w / 2, y + h - 80, Math.max(12, canvas.width * 0.0132), "#ffffff", "center");
       drawBtn("Buy", x + (w - 64) / 2, y + h - 50, 64, 32, callback);
     }
     // ---------- background ----------
     rect(0, 0, canvas.width, canvas.height, "#3f3f46")
     // ---------- left shop panel ----------
-    const leftX = 40;
-    const leftY = 60;
-    const leftW = 220;
-    const leftH = 780
+    const leftX = canvas.width * 0.022;
+    const leftY = canvas.height * 0.06;
+    const leftW = canvas.width * 0.12;
+    const leftH = canvas.height * 0.78;
     rect(leftX, leftY, leftW, leftH, "#4b4b52", "#e58aa0", 4)
     // SHOP title
-    text("SHOP", leftX + leftW / 2, 2, 64, "#facc15", "center")
+    text("SHOP", leftX + leftW / 2, 2, Math.max(32, canvas.width * 0.035), "#facc15", "center")
     // Dice label
     rect(leftX + 20, leftY + 20, leftW - 40, 50, "#2f2f34");
-    text("Dice", leftX + leftW / 2, leftY + 30, 32, "#ffffff", "center")
+    text("Dice", leftX + leftW / 2, leftY + 30, Math.max(16, canvas.width * 0.018), "#ffffff", "center")
     // Dice slots
     function renderDiceSlots() {
-        let slotY = leftY + 100;
+        let slotY = leftY + canvas.height * 0.1;
+        const diceBoxPadding = leftW * 0.15;
+        const diceBoxW = leftW - diceBoxPadding * 2;
+        const diceBoxH = leftH * 0.12;
+        const diceBoxX = leftX + diceBoxPadding;
+        const diceScale = 1.2;
+        const dicePixelSize = 64 * diceScale;
         for (let i = 0; i < 5; i++) {
-        rect(leftX + 55, slotY, leftW - 110, 110, "#3a3a40");
-        drawDice(0, leftX + 62.5, slotY + 7, 1.5, i + 1);
-        slotY += 120;
+        rect(diceBoxX, slotY, diceBoxW, diceBoxH, "#3a3a40");
+        // Center dice in box
+        const diceCenterX = diceBoxX + diceBoxW / 2 - dicePixelSize / 2;
+        const diceCenterY = slotY + diceBoxH / 2 - dicePixelSize / 2;
+        drawDice(0, diceCenterX, diceCenterY, diceScale, i + 1);
+        slotY += diceBoxH * 1.3;
         }
     }
     function drawCurrencyBox() {
@@ -89,16 +102,18 @@ function draw_shop(){
             twodp = "";
             cDisplay = `$${currency.toFixed(2)}`;
         }
-        rect(canvas.width - 260, 20, 220, 50, "#5b5b61");
-        text(`Currency: ${cDisplay}`, canvas.width - 150, 30, 24, "#ffffff", "center");
+        const currBoxW = canvas.width * 0.12;
+        const currBoxH = canvas.height * 0.05;
+        rect(canvas.width - currBoxW - 20, 20, currBoxW, currBoxH, "#5b5b61");
+        text(`Currency: ${cDisplay}`, canvas.width - currBoxW / 2 - 10, 30, Math.max(12, canvas.width * 0.013), "#ffffff", "center");
     }
     renderDiceSlots();
     drawCurrencyBox()
     // ---------- main center panel ----------
-    const centerX = leftX + leftW + 40;
-    const centerY = 80;
-    const centerW = 1320;
-    const centerH = 720
+    const centerX = leftX + leftW + canvas.width * 0.022;
+    const centerY = leftY;
+    const centerW = canvas.width - leftW - (canvas.width * 0.022 * 3) - (canvas.width * 0.12);
+    const centerH = canvas.height - leftY - (canvas.height * 0.1);
     rect(centerX, centerY, centerW, centerH, "#585861")
     let shop_items = [];
     function addShopItem(imgSrc, price, callback = null, meta = {}) {
@@ -109,12 +124,12 @@ function draw_shop(){
       shop_items.push({ imgSrc, price, callback:ncb,meta });
     }
     function renderShopItems() {
-      const itemsPerRow = 5;
-      const itemWidth = 200;
-      const itemHeight = 250;
-      const padding = 40;
-      let startX = centerX + 80;
-      let startY = centerY + 40
+      const itemsPerRow = Math.max(3, Math.floor((centerW - 80) / (canvas.width * 0.11)));
+      const itemWidth = Math.max(120, canvas.width * 0.11);
+      const itemHeight = Math.max(150, canvas.height * 0.25);
+      const padding = Math.max(20, canvas.width * 0.022);
+      let startX = centerX + canvas.width * 0.044;
+      let startY = centerY + canvas.height * 0.04;
       // Shop RNG
       shop_items = shop_items.sort(() => Math.random() - 0.5);
       shop_items = shop_items.slice(0, 10);
@@ -150,22 +165,198 @@ function draw_shop(){
         addCenterBuyItem(x, y, itemWidth, itemHeight, item.imgSrc, item.price, newCB);
       });
     }
-    // Shop Item Renderin
-    loadShopItems(addShopItem,renderDiceSlots,drawCurrencyBox,addCurrency);
-
+    // Shop Item Rendering
+    // Only generate new items if cache is empty
+    if (cachedShopItems.length === 0) {
+        loadShopItems(addShopItem,renderDiceSlots,drawCurrencyBox,addCurrency);
+    } else {
+        // Use cached items instead of generating new ones
+        cachedShopItems.forEach(item => {
+            addShopItem(item.imgSrc, item.price, item.callback, item.meta);
+        });
+    }
 
     renderShopItems();
-    // Exit button
-    drawBtn("Exit", window.innerWidth / 2 - 64, window.innerHeight - 150, 128, 64);
-    //Shop Reroll Button
-    drawBtn("ShopRoll", window.innerWidth / 2 - 64+12, window.innerHeight - 400, 110, 110);
+    
+    // Shop Reroll Button (centered horizontally, positioned above exit button)
+    const rerollBtnW = Math.max(70, canvas.width * 0.065);
+    const rerollBtnH = Math.max(70, canvas.height * 0.10);
+    const rerollBtnY = canvas.height - rerollBtnH * 3.5;
+    drawBtn("ShopRoll", canvas.width / 2 - rerollBtnW / 2, rerollBtnY, rerollBtnW, rerollBtnH);
     setTimeout(() => {
-        text(`${rerollCost}`, window.innerWidth / 2 - 64+12+55, window.innerHeight - 400+50, 16, "#ffffff", "center");
+        text(`${rerollCost}`, canvas.width / 2, rerollBtnY + rerollBtnH / 2, Math.max(12, canvas.width * 0.012), "#ffffff", "center");
     },150)
+    
+    // Exit button
+    const exitBtnW = Math.max(80, canvas.width * 0.085);
+    const exitBtnH = Math.max(40, canvas.height * 0.055);
+    const exitBtnY = canvas.height - exitBtnH - 15;
+    drawBtn("Exit", canvas.width / 2 - exitBtnW / 2, exitBtnY, exitBtnW, exitBtnH);
 
     // ---------- right panel ----------
-    const rightW = 220;
-    const rightX = centerX + centerW + 40
-    rect(canvas.width - 260, centerY, rightW, centerH, "#4b4b52", "#a78bfa", 4);
+    const rightW = canvas.width * 0.12;
+    const rightX = centerX + centerW + canvas.width * 0.022;
+    rect(canvas.width - rightW - 20, centerY, rightW, centerH, "#4b4b52", "#a78bfa", 4);
+    
+    // Cache the generated shop items for future redraws
+    if (cachedShopItems.length === 0 && shop_items.length > 0) {
+        cachedShopItems = shop_items.map(item => ({
+            imgSrc: item.imgSrc,
+            price: item.price,
+            callback: item.callback,
+            meta: item.meta
+        }));
+    }
+}
 
+// Redraw shop on resize without regenerating items
+function redraw_shop(){
+    // clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    shop_state = true;
+
+    // ---------- helpers ----------
+    function rect(x, y, w, h, fill, stroke = null, lineWidth = 2) {
+      ctx.fillStyle = fill;
+      ctx.fillRect(x, y, w, h);
+    
+      if (stroke) {
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = lineWidth;
+        ctx.strokeRect(x, y, w, h);
+      }
+    }
+    function text(txt, x, y, size = 32, color = "#fff", align = "left") {
+      ctx.fillStyle = color;
+      ctx.font = `${size}px sans-serif`;
+      ctx.textAlign = align;
+      ctx.textBaseline = "top";
+      ctx.fillText(txt, x, y);
+    }
+    function addCenterBuyItem(x, y, w, h, imgSrc, price, callback = null) {
+      rect(x, y, w, h, "#2f2f34");
+      let img = new Image();
+      img.src = imgSrc;
+      img.onload = function() {
+        // Only draw if we're still in the shop
+        if(shop_state === true) {
+          ctx.drawImage(img, x + (w - img.width) / 2, y + 20);
+        }
+      }
+      text(`$${price.toFixed(2)}`, x + w / 2, y + h - 80, Math.max(12, canvas.width * 0.0132), "#ffffff", "center");
+      drawBtn("Buy", x + (w - 64) / 2, y + h - 50, 64, 32, callback);
+    }
+    function drawCurrencyBox() {
+        // make like "k" for thousand "m" for million etc
+        let placeValueRemoved = 0;
+        let twodp = "";
+        let cDisplay = "";
+        if(currency >= 1e9){
+            placeValueRemoved = 12;
+            let fullTXT = "$"+currency.toFixed(2).toString();
+            fullTXT = fullTXT.replace(`$${currency.toFixed(2).toString().slice(0,currency.toFixed(2).toString().length-placeValueRemoved)}`,"");
+            twodp = fullTXT.slice(0,2)
+            cDisplay = `$${currency.toFixed(2).toString().slice(0,currency.toFixed(2).toString().length-placeValueRemoved)}.${twodp}b`;
+        } else if(currency >= 1e6){
+            placeValueRemoved = 9;
+            let fullTXT = "$"+currency.toFixed(2).toString();
+            fullTXT = fullTXT.replace(`$${currency.toFixed(2).toString().slice(0,currency.toFixed(2).toString().length-placeValueRemoved)}`,"");
+            twodp = fullTXT.slice(0,2)
+            cDisplay = `$${currency.toFixed(2).toString().slice(0,currency.toFixed(2).toString().length-placeValueRemoved)}.${twodp}m`;
+        } else if(currency >= 1e3){
+            placeValueRemoved = 6;
+            let fullTXT = "$"+currency.toFixed(2).toString();
+            fullTXT = fullTXT.replace(`$${currency.toFixed(2).toString().slice(0,currency.toFixed(2).toString().length-placeValueRemoved)}`,"");
+            twodp = fullTXT.slice(0,2)
+            cDisplay = `$${currency.toFixed(2).toString().slice(0,currency.toFixed(2).toString().length-placeValueRemoved)}.${twodp}k`;
+        } else {
+            placeValueRemoved = 0;
+            twodp = "";
+            cDisplay = `$${currency.toFixed(2)}`;
+        }
+        const currBoxW = canvas.width * 0.12;
+        const currBoxH = canvas.height * 0.05;
+        rect(canvas.width - currBoxW - 20, 20, currBoxW, currBoxH, "#5b5b61");
+        text(`Currency: ${cDisplay}`, canvas.width - currBoxW / 2 - 10, 30, Math.max(12, canvas.width * 0.013), "#ffffff", "center");
+    }
+    
+    // ---------- background ----------
+    rect(0, 0, canvas.width, canvas.height, "#3f3f46")
+    // ---------- left shop panel ----------
+    const leftX = canvas.width * 0.022;
+    const leftY = canvas.height * 0.06;
+    const leftW = canvas.width * 0.12;
+    const leftH = canvas.height * 0.78;
+    rect(leftX, leftY, leftW, leftH, "#4b4b52", "#e58aa0", 4)
+    // SHOP title
+    text("SHOP", leftX + leftW / 2, 2, Math.max(32, canvas.width * 0.035), "#facc15", "center")
+    // Dice label
+    rect(leftX + 20, leftY + 20, leftW - 40, 50, "#2f2f34");
+    text("Dice", leftX + leftW / 2, leftY + 30, Math.max(16, canvas.width * 0.018), "#ffffff", "center")
+    // Dice slots
+    function renderDiceSlots() {
+        let slotY = leftY + canvas.height * 0.1;
+        const diceBoxPadding = leftW * 0.15;
+        const diceBoxW = leftW - diceBoxPadding * 2;
+        const diceBoxH = leftH * 0.12;
+        const diceBoxX = leftX + diceBoxPadding;
+        const diceScale = 1.2;
+        const dicePixelSize = 64 * diceScale;
+        for (let i = 0; i < 5; i++) {
+        rect(diceBoxX, slotY, diceBoxW, diceBoxH, "#3a3a40");
+        // Center dice in box
+        const diceCenterX = diceBoxX + diceBoxW / 2 - dicePixelSize / 2;
+        const diceCenterY = slotY + diceBoxH / 2 - dicePixelSize / 2;
+        drawDice(0, diceCenterX, diceCenterY, diceScale, i + 1);
+        slotY += diceBoxH * 1.3;
+        }
+    }
+    renderDiceSlots();
+    drawCurrencyBox()
+    // ---------- main center panel ----------
+    const centerX = leftX + leftW + canvas.width * 0.022;
+    const centerY = leftY;
+    const centerW = canvas.width - leftW - (canvas.width * 0.022 * 3) - (canvas.width * 0.12);
+    const centerH = canvas.height - leftY - (canvas.height * 0.1);
+    rect(centerX, centerY, centerW, centerH, "#585861")
+    
+    // Redraw cached items with new positioning
+    function renderShopItems() {
+      const itemsPerRow = Math.max(3, Math.floor((centerW - 80) / (canvas.width * 0.11)));
+      const itemWidth = Math.max(120, canvas.width * 0.11);
+      const itemHeight = Math.max(150, canvas.height * 0.25);
+      const padding = Math.max(20, canvas.width * 0.022);
+      let startX = centerX + canvas.width * 0.044;
+      let startY = centerY + canvas.height * 0.04;
+
+      cachedShopItems.forEach((item, index) => {
+        let row = Math.floor(index / itemsPerRow);
+        let col = index % itemsPerRow;
+        let x = startX + col * (itemWidth + padding);
+        let y = startY + row * (itemHeight + padding);
+        addCenterBuyItem(x, y, itemWidth, itemHeight, item.imgSrc, item.price, item.callback);
+      });
+    }
+    
+    renderShopItems();
+    
+    // Shop Reroll Button
+    const rerollBtnW = Math.max(70, canvas.width * 0.065);
+    const rerollBtnH = Math.max(70, canvas.height * 0.10);
+    const rerollBtnY = canvas.height - rerollBtnH * 3.5;
+    drawBtn("ShopRoll", canvas.width / 2 - rerollBtnW / 2, rerollBtnY, rerollBtnW, rerollBtnH);
+    setTimeout(() => {
+        text(`${rerollCost}`, canvas.width / 2, rerollBtnY + rerollBtnH / 2, Math.max(12, canvas.width * 0.012), "#ffffff", "center");
+    },150)
+    
+    // Exit button
+    const exitBtnW = Math.max(80, canvas.width * 0.085);
+    const exitBtnH = Math.max(40, canvas.height * 0.055);
+    const exitBtnY = canvas.height - exitBtnH - 15;
+    drawBtn("Exit", canvas.width / 2 - exitBtnW / 2, exitBtnY, exitBtnW, exitBtnH);
+
+    // ---------- right panel ----------
+    const rightW = canvas.width * 0.12;
+    const rightX = centerX + centerW + canvas.width * 0.022;
+    rect(canvas.width - rightW - 20, centerY, rightW, centerH, "#4b4b52", "#a78bfa", 4);
 }

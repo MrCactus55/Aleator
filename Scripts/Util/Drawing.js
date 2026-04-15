@@ -8,7 +8,10 @@ function drawBtn(value, x, y, width = 64, height = 64, callback) {
     let img = new Image();
     img.src = BtnFN;
     img.onload = function() {
-        ctx.drawImage(img, x, y, width, height);
+        // Only draw if game is still active (prevents drawing after state changes)
+        if(typeof gameStarted !== 'undefined' && gameStarted === true) {
+            ctx.drawImage(img, x, y, width, height);
+        }
     }
     if(callback) {
         document.addEventListener('click', function(event) {
