@@ -32,13 +32,13 @@ document.addEventListener("keydown", event => {
                 for(let j = 0; j < 100; j++) {
                 ctx.strokeStyle = "#3f3f46";
                 ctx.lineWidth = 2;
-                ctx.strokeRect(canvas.width / 2 - 166 + 0 * 70 -2.5, 47.5, 68, 68);
+                ctx.strokeRect(canvas.width / 2 - 166 + 0 * 70 -2.5, 47.5 + offsetY, 68, 68);
                 }
             } else {
                 selected[0] = true;
                 ctx.strokeStyle = "#8a0e1c";
                 ctx.lineWidth = 2;
-                ctx.strokeRect(canvas.width / 2 - 166 + 0 * 70 -2.5, 47.5, 68, 68);
+                ctx.strokeRect(canvas.width / 2 - 166 + 0 * 70 -2.5, 47.5 + offsetY, 68, 68);
             }
     }
     if(event.key == '2') {
@@ -48,13 +48,13 @@ document.addEventListener("keydown", event => {
                 for(let j = 0; j < 100; j++) {
                 ctx.strokeStyle = "#3f3f46";
                 ctx.lineWidth = 2;
-                ctx.strokeRect(canvas.width / 2 - 166 + 1 * 70 -2.5, 47.5, 68, 68);
+                ctx.strokeRect(canvas.width / 2 - 166 + 1 * 70 -2.5, 47.5 + offsetY, 68, 68);
                 }
             } else {
                 selected[1] = true;
                 ctx.strokeStyle = "#8a0e1c";
                 ctx.lineWidth = 2;
-                ctx.strokeRect(canvas.width / 2 - 166 + 1 * 70 -2.5, 47.5, 68, 68);
+                ctx.strokeRect(canvas.width / 2 - 166 + 1 * 70 -2.5, 47.5 + offsetY, 68, 68);
             }
     }
     if(event.key == '3') {
@@ -64,13 +64,13 @@ document.addEventListener("keydown", event => {
                 for(let j = 0; j < 100; j++) {
                 ctx.strokeStyle = "#3f3f46";
                 ctx.lineWidth = 2;
-                ctx.strokeRect(canvas.width / 2 - 166 + 2 * 70 -2.5, 47.5, 68, 68);
+                ctx.strokeRect(canvas.width / 2 - 166 + 2 * 70 -2.5, 47.5 + offsetY, 68, 68);
                 }
             } else {
                 selected[2] = true;
                 ctx.strokeStyle = "#8a0e1c";
                 ctx.lineWidth = 2;
-                ctx.strokeRect(canvas.width / 2 - 166 + 2 * 70 -2.5, 47.5, 68, 68);
+                ctx.strokeRect(canvas.width / 2 - 166 + 2 * 70 -2.5, 47.5 + offsetY, 68, 68);
             }
     }
     if(event.key == '4') {
@@ -80,13 +80,13 @@ document.addEventListener("keydown", event => {
                 for(let j = 0; j < 100; j++) {
                 ctx.strokeStyle = "#3f3f46";
                 ctx.lineWidth = 2;
-                ctx.strokeRect(canvas.width / 2 - 166 + 3 * 70 -2.5, 47.5, 68, 68);
+                ctx.strokeRect(canvas.width / 2 - 166 + 3 * 70 -2.5, 47.5 + offsetY, 68, 68);
                 }
             } else {
                 selected[3] = true;
                 ctx.strokeStyle = "#8a0e1c";
                 ctx.lineWidth = 2;
-                ctx.strokeRect(canvas.width / 2 - 166 + 3 * 70 -2.5, 47.5, 68, 68);
+                ctx.strokeRect(canvas.width / 2 - 166 + 3 * 70 -2.5, 47.5 + offsetY, 68, 68);
             }
     }
     if(event.key == '5') {
@@ -96,13 +96,13 @@ document.addEventListener("keydown", event => {
                 for(let j = 0; j < 100; j++) {
                 ctx.strokeStyle = "#3f3f46";
                 ctx.lineWidth = 2;
-                ctx.strokeRect(canvas.width / 2 - 166 + 4 * 70 -2.5, 47.5, 68, 68);
+                ctx.strokeRect(canvas.width / 2 - 166 + 4 * 70 -2.5, 47.5 + offsetY, 68, 68);
                 }
             } else {
                 selected[4] = true;
                 ctx.strokeStyle = "#8a0e1c";
                 ctx.lineWidth = 2;
-                ctx.strokeRect(canvas.width / 2 - 166 + 4 * 70 -2.5, 47.5, 68, 68);
+                ctx.strokeRect(canvas.width / 2 - 166 + 4 * 70 -2.5, 47.5 + offsetY, 68, 68);
             }
     }
     if((event.key == 'r' || event.key == 'R') && shop_state == false) {
@@ -152,7 +152,7 @@ canvas.addEventListener('click', function(event) {
     if(shop_state == true) return;
     for(let i = 0; i < 5; i++){
         if(x >= canvas.width / 2 - 166 + i * 70 && x <= canvas.width / 2 - 166 + i * 70 + 64 &&
-           y >= 50 && y <= 50 + 64){
+           y >= 50 + offsetY && y <= 50 + 64 + offsetY){
             // Toggle selection for the clicked die
             if(selected[i]){
                 delete selected[i];
@@ -160,13 +160,13 @@ canvas.addEventListener('click', function(event) {
                 for(let j = 0; j < 100; j++) {
                 ctx.strokeStyle = "#3f3f46";
                 ctx.lineWidth = 2;
-                ctx.strokeRect(canvas.width / 2 - 166 + i * 70 -2.5, 47.5, 68, 68);
+                ctx.strokeRect(canvas.width / 2 - 166 + i * 70 -2.5, 47.5 + offsetY, 68, 68);
                 }
             } else {
                 selected[i] = true;
                 ctx.strokeStyle = "#8a0e1c";
                 ctx.lineWidth = 2;
-                ctx.strokeRect(canvas.width / 2 - 166 + i * 70 -2.5, 47.5, 68, 68);
+                ctx.strokeRect(canvas.width / 2 - 166 + i * 70 -2.5, 47.5 + offsetY, 68, 68);
             }
         }
     }

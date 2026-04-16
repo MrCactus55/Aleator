@@ -37,11 +37,14 @@ function draw_shop(){
       img.onload = function() {
         // Only draw if we're still in the shop
         if(shop_state === true) {
-          ctx.drawImage(img, x + (w - img.width) / 2, y + 20);
+          let scale = Math.min(1, (w - 20) / img.width);
+          ctx.drawImage(img, x + (w - img.width * scale) / 2, y + 20, img.width * scale, img.height * scale);
         }
       }
       text(`$${price.toFixed(2)}`, x + w / 2, y + h - 80, Math.max(12, canvas.width * 0.0132), "#ffffff", "center");
-      drawBtn("Buy", x + (w - 64) / 2, y + h - 50, 64, 32, callback);
+      const btnW = Math.max(40, w * 0.5);
+      const btnH = btnW * 0.5;
+      drawBtn("Buy", x + (w - btnW) / 2, y + h - btnH - 10, btnW, btnH, callback);
     }
     // ---------- background ----------
     rect(0, 0, canvas.width, canvas.height, "#3f3f46")
@@ -61,9 +64,9 @@ function draw_shop(){
         let slotY = leftY + canvas.height * 0.1;
         const diceBoxPadding = leftW * 0.15;
         const diceBoxW = leftW - diceBoxPadding * 2;
-        const diceBoxH = leftH * 0.12;
+        const diceBoxH = Math.max(40, leftH * 0.08);
         const diceBoxX = leftX + diceBoxPadding;
-        const diceScale = 1.2;
+        const diceScale = Math.min(diceBoxW, diceBoxH) / 64 * 0.8;
         const dicePixelSize = 64 * diceScale;
         for (let i = 0; i < 5; i++) {
         rect(diceBoxX, slotY, diceBoxW, diceBoxH, "#3a3a40");
@@ -125,9 +128,9 @@ function draw_shop(){
     }
     function renderShopItems() {
       const itemsPerRow = Math.max(3, Math.floor((centerW - 80) / (canvas.width * 0.11)));
-      const itemWidth = Math.max(120, canvas.width * 0.11);
-      const itemHeight = Math.max(150, canvas.height * 0.25);
-      const padding = Math.max(20, canvas.width * 0.022);
+      const itemWidth = canvas.width * 0.11;
+      const itemHeight = canvas.height * 0.25;
+      const padding = canvas.width * 0.022;
       let startX = centerX + canvas.width * 0.044;
       let startY = centerY + canvas.height * 0.04;
       // Shop RNG
@@ -240,11 +243,14 @@ function redraw_shop(){
       img.onload = function() {
         // Only draw if we're still in the shop
         if(shop_state === true) {
-          ctx.drawImage(img, x + (w - img.width) / 2, y + 20);
+          let scale = Math.min(1, (w - 20) / img.width);
+          ctx.drawImage(img, x + (w - img.width * scale) / 2, y + 20, img.width * scale, img.height * scale);
         }
       }
       text(`$${price.toFixed(2)}`, x + w / 2, y + h - 80, Math.max(12, canvas.width * 0.0132), "#ffffff", "center");
-      drawBtn("Buy", x + (w - 64) / 2, y + h - 50, 64, 32, callback);
+      const btnW = Math.max(40, w * 0.5);
+      const btnH = btnW * 0.5;
+      drawBtn("Buy", x + (w - btnW) / 2, y + h - btnH - 10, btnW, btnH, callback);
     }
     function drawCurrencyBox() {
         // make like "k" for thousand "m" for million etc
@@ -298,9 +304,9 @@ function redraw_shop(){
         let slotY = leftY + canvas.height * 0.1;
         const diceBoxPadding = leftW * 0.15;
         const diceBoxW = leftW - diceBoxPadding * 2;
-        const diceBoxH = leftH * 0.12;
+        const diceBoxH = Math.max(40, leftH * 0.08);
         const diceBoxX = leftX + diceBoxPadding;
-        const diceScale = 1.2;
+        const diceScale = Math.min(diceBoxW, diceBoxH) / 64 * 0.8;
         const dicePixelSize = 64 * diceScale;
         for (let i = 0; i < 5; i++) {
         rect(diceBoxX, slotY, diceBoxW, diceBoxH, "#3a3a40");
@@ -323,9 +329,9 @@ function redraw_shop(){
     // Redraw cached items with new positioning
     function renderShopItems() {
       const itemsPerRow = Math.max(3, Math.floor((centerW - 80) / (canvas.width * 0.11)));
-      const itemWidth = Math.max(120, canvas.width * 0.11);
-      const itemHeight = Math.max(150, canvas.height * 0.25);
-      const padding = Math.max(20, canvas.width * 0.022);
+      const itemWidth = canvas.width * 0.11;
+      const itemHeight = canvas.height * 0.25;
+      const padding = canvas.width * 0.022;
       let startX = centerX + canvas.width * 0.044;
       let startY = centerY + canvas.height * 0.04;
 
