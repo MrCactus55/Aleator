@@ -122,7 +122,7 @@ canvas.addEventListener('click', function(event) {
         }
     })
     // shop exit button
-    if(shop_state == true){
+    /*if(shop_state == true){
         if (x >= window.innerWidth / 2 - 64 && x <= window.innerWidth / 2 + 64 &&
             y >= window.innerHeight - 150 && y <= window.innerHeight - 150 + 64) {
                 exitShop();
@@ -139,8 +139,8 @@ canvas.addEventListener('click', function(event) {
                 addCurrency(-rerollCost);
                 rerollCost += 5; // increase cost for next reroll
                 reopenShop();
-        }
-    }
+        } */
+    //}
 })
 // Detect dice clicks: allow holding/releasing dice when a round is active
 canvas.addEventListener('click', function(event) {

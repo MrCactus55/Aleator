@@ -1,6 +1,43 @@
 let pendingDelELs = [];
 let cachedShopItems = []; // Cache shop items to prevent reroll on resize
 
+let globalValues = {
+  rerollx: 0,
+  rerolly: 0,
+  rerollw: 0,
+  rerollh: 0,
+  exitx: 0,
+  exity: 0,
+  exitw: 0,
+  exith: 0
+}
+
+setTimeout(() => {
+  canvas.addEventListener('click', function(event) {
+    if(shop_state != true) return;
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+    if (mouseX >= globalValues.rerollx && mouseX <= globalValues.rerollx + globalValues.rerollw &&
+        mouseY >= globalValues.rerolly && mouseY <= globalValues.rerolly + globalValues.rerollh) {
+            if(currency < rerollCost){
+                alert("Insufficient funds to reroll shop items.");
+                return;
+            }
+            addCurrency(-rerollCost);
+            rerollCost += 5; // increase cost for next reroll
+            reopenShop();
+    }
+
+    if (mouseX >= globalValues.exitx && mouseX <= globalValues.exitx + globalValues.exitw &&
+      mouseY >= globalValues.exity && mouseY <= globalValues.exity + globalValues.exith) {
+        console.log("Exiting shop...");
+          exitShop();
+  }
+});
+},150)
+
+
 function draw_shop(){
     // clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -43,7 +80,7 @@ function draw_shop(){
       }
       text(`$${price.toFixed(2)}`, x + w / 2, y + h - 80, Math.max(12, canvas.width * 0.0132), "#ffffff", "center");
       const btnW = Math.max(40, w * 0.5);
-      const btnH = btnW * 0.5;
+      const btnH = Math.min(32, btnW * 0.5);
       drawBtn("Buy", x + (w - btnW) / 2, y + h - btnH - 10, btnW, btnH, callback);
     }
     // ---------- background ----------
@@ -57,8 +94,12 @@ function draw_shop(){
     // SHOP title
     text("SHOP", leftX + leftW / 2, 2, Math.max(32, canvas.width * 0.035), "#facc15", "center")
     // Dice label
-    rect(leftX + 20, leftY + 20, leftW - 40, 50, "#2f2f34");
-    text("Dice", leftX + leftW / 2, leftY + 30, Math.max(16, canvas.width * 0.018), "#ffffff", "center")
+    const diceLabelTextSize = Math.max(16, canvas.width * 0.018);
+    const diceLabelBoxH = diceLabelTextSize + 16;
+    const diceLabelBoxW = leftW * 0.85;
+    const diceLabelBoxX = leftX + leftW * 0.075;
+    rect(diceLabelBoxX, leftY + 20, diceLabelBoxW, diceLabelBoxH, "#2f2f34");
+    text("Dice", leftX + leftW / 2, leftY + 20 + diceLabelBoxH / 2 - diceLabelTextSize / 2, diceLabelTextSize, "#ffffff", "center")
     // Dice slots
     function renderDiceSlots() {
         let slotY = leftY + canvas.height * 0.1;
@@ -105,13 +146,14 @@ function draw_shop(){
             twodp = "";
             cDisplay = `$${currency.toFixed(2)}`;
         }
-        const currBoxW = canvas.width * 0.12;
+        const currBoxW = canvas.width * 0.14;
         const currBoxH = canvas.height * 0.05;
-        rect(canvas.width - currBoxW - 20, 20, currBoxW, currBoxH, "#5b5b61");
-        text(`Currency: ${cDisplay}`, canvas.width - currBoxW / 2 - 10, 30, Math.max(12, canvas.width * 0.013), "#ffffff", "center");
+        const rightPanelX = canvas.width - canvas.width * 0.12 - 20;
+        const currBoxX = rightPanelX - currBoxW - canvas.width * 0.01;
+        rect(currBoxX, 5, currBoxW, currBoxH, "#5b5b61");
+        text(cDisplay, currBoxX + currBoxW / 2, 5 + currBoxH / 2, Math.max(8, canvas.width * 0.009), "#ffffff", "center");
     }
     renderDiceSlots();
-    drawCurrencyBox()
     // ---------- main center panel ----------
     const centerX = leftX + leftW + canvas.width * 0.022;
     const centerY = leftY;
@@ -181,20 +223,47 @@ function draw_shop(){
 
     renderShopItems();
     
-    // Shop Reroll Button (centered horizontally, positioned above exit button)
+    // Calculate number of rows
+    const itemsPerRow = Math.max(3, Math.floor((centerW - 80) / (canvas.width * 0.11)));
+    const numRows = Math.ceil(shop_items.length / itemsPerRow);
+    console.log(`Items per row: ${itemsPerRow}, Number of rows: ${numRows}`);
+    
+    // Shop Reroll Button
+    let rerollBtnX;
     const rerollBtnW = Math.max(70, canvas.width * 0.065);
     const rerollBtnH = Math.max(70, canvas.height * 0.10);
     const rerollBtnY = canvas.height - rerollBtnH * 3.5;
-    drawBtn("ShopRoll", canvas.width / 2 - rerollBtnW / 2, rerollBtnY, rerollBtnW, rerollBtnH);
+    if(numRows > 2) {
+      rerollBtnX = (canvas.width / 2 - rerollBtnW / 2) + 50;
+    }else {
+      rerollBtnX = canvas.width / 2 - rerollBtnW / 2;
+    }
+    globalValues.rerollx = rerollBtnX;
+    globalValues.rerolly = rerollBtnY;
+    globalValues.rerollw = rerollBtnW;
+    globalValues.rerollh = rerollBtnH;
+
+    drawBtn("ShopRoll",rerollBtnX, rerollBtnY, rerollBtnW, rerollBtnH);
     setTimeout(() => {
-        text(`${rerollCost}`, canvas.width / 2, rerollBtnY + rerollBtnH / 2, Math.max(12, canvas.width * 0.012), "#ffffff", "center");
+        text(`${rerollCost}`, rerollBtnX + 35, rerollBtnY + rerollBtnH / 2, Math.max(12, canvas.width * 0.012), "#ffffff", "center");
     },150)
     
     // Exit button
+    let exitBtnX;
     const exitBtnW = Math.max(80, canvas.width * 0.085);
     const exitBtnH = Math.max(40, canvas.height * 0.055);
-    const exitBtnY = canvas.height - exitBtnH - 15;
-    drawBtn("Exit", canvas.width / 2 - exitBtnW / 2, exitBtnY, exitBtnW, exitBtnH);
+    const exitBtnY = canvas.height - exitBtnH - 100;
+    if(numRows > 2) {
+      exitBtnX = (canvas.width / 2 - exitBtnW / 2) + 50;
+    }else {
+      exitBtnX = canvas.width / 2 - exitBtnW / 2;
+    }
+
+    globalValues.exitx = exitBtnX;
+    globalValues.exity = exitBtnY;
+    globalValues.exitw = exitBtnW;
+    globalValues.exith = exitBtnH;
+    drawBtn("Exit", exitBtnX, exitBtnY, exitBtnW, exitBtnH);
 
     // ---------- right panel ----------
     const rightW = canvas.width * 0.12;
@@ -210,6 +279,9 @@ function draw_shop(){
             meta: item.meta
         }));
     }
+    
+    // Draw currency box last so it appears on top
+    drawCurrencyBox();
 }
 
 // Redraw shop on resize without regenerating items
@@ -249,7 +321,7 @@ function redraw_shop(){
       }
       text(`$${price.toFixed(2)}`, x + w / 2, y + h - 80, Math.max(12, canvas.width * 0.0132), "#ffffff", "center");
       const btnW = Math.max(40, w * 0.5);
-      const btnH = btnW * 0.5;
+      const btnH = Math.min(32, btnW * 0.5);
       drawBtn("Buy", x + (w - btnW) / 2, y + h - btnH - 10, btnW, btnH, callback);
     }
     function drawCurrencyBox() {
@@ -280,10 +352,12 @@ function redraw_shop(){
             twodp = "";
             cDisplay = `$${currency.toFixed(2)}`;
         }
-        const currBoxW = canvas.width * 0.12;
+        const currBoxW = canvas.width * 0.14;
         const currBoxH = canvas.height * 0.05;
-        rect(canvas.width - currBoxW - 20, 20, currBoxW, currBoxH, "#5b5b61");
-        text(`Currency: ${cDisplay}`, canvas.width - currBoxW / 2 - 10, 30, Math.max(12, canvas.width * 0.013), "#ffffff", "center");
+        const rightPanelX = canvas.width - canvas.width * 0.12 - 20;
+        const currBoxX = rightPanelX - currBoxW - canvas.width * 0.01;
+        rect(currBoxX, 5, currBoxW, currBoxH, "#5b5b61");
+        text(cDisplay, currBoxX + currBoxW / 2, 5 + currBoxH / 2, Math.max(8, canvas.width * 0.009), "#ffffff", "center");
     }
     
     // ---------- background ----------
@@ -297,8 +371,12 @@ function redraw_shop(){
     // SHOP title
     text("SHOP", leftX + leftW / 2, 2, Math.max(32, canvas.width * 0.035), "#facc15", "center")
     // Dice label
-    rect(leftX + 20, leftY + 20, leftW - 40, 50, "#2f2f34");
-    text("Dice", leftX + leftW / 2, leftY + 30, Math.max(16, canvas.width * 0.018), "#ffffff", "center")
+    const diceLabelTextSize2 = Math.max(16, canvas.width * 0.018);
+    const diceLabelBoxH2 = diceLabelTextSize2 + 16;
+    const diceLabelBoxW2 = leftW * 0.85;
+    const diceLabelBoxX2 = leftX + leftW * 0.075;
+    rect(diceLabelBoxX2, leftY + 20, diceLabelBoxW2, diceLabelBoxH2, "#2f2f34");
+    text("Dice", leftX + leftW / 2, leftY + 20 + diceLabelBoxH2 / 2 - diceLabelTextSize2 / 2, diceLabelTextSize2, "#ffffff", "center")
     // Dice slots
     function renderDiceSlots() {
         let slotY = leftY + canvas.height * 0.1;
@@ -318,7 +396,6 @@ function redraw_shop(){
         }
     }
     renderDiceSlots();
-    drawCurrencyBox()
     // ---------- main center panel ----------
     const centerX = leftX + leftW + canvas.width * 0.022;
     const centerY = leftY;
@@ -346,23 +423,49 @@ function redraw_shop(){
     
     renderShopItems();
     
+    // Calculate number of rows
+    const itemsPerRow = Math.max(3, Math.floor((centerW - 80) / (canvas.width * 0.11)));
+    const numRows = Math.ceil(cachedShopItems.length / itemsPerRow);
+    console.log(`Items per row: ${itemsPerRow}, Number of rows: ${numRows}`);
+    
     // Shop Reroll Button
     const rerollBtnW = Math.max(70, canvas.width * 0.065);
     const rerollBtnH = Math.max(70, canvas.height * 0.10);
     const rerollBtnY = canvas.height - rerollBtnH * 3.5;
-    drawBtn("ShopRoll", canvas.width / 2 - rerollBtnW / 2, rerollBtnY, rerollBtnW, rerollBtnH);
+    if(numRows > 2) {
+      rerollBtnX = (canvas.width / 2 - rerollBtnW / 2) + 50;
+    }else {
+      rerollBtnX = canvas.width / 2 - rerollBtnW / 2;
+    }
+    drawBtn("ShopRoll",rerollBtnX, rerollBtnY, rerollBtnW, rerollBtnH);
     setTimeout(() => {
-        text(`${rerollCost}`, canvas.width / 2, rerollBtnY + rerollBtnH / 2, Math.max(12, canvas.width * 0.012), "#ffffff", "center");
+        text(`${rerollCost}`, rerollBtnX + 35, rerollBtnY + rerollBtnH / 2, Math.max(12, canvas.width * 0.012), "#ffffff", "center");
     },150)
     
+    globalValues.rerollx = rerollBtnX;
+    globalValues.rerolly = rerollBtnY;
+    globalValues.rerollw = rerollBtnW;
+    globalValues.rerollh = rerollBtnH;
+
     // Exit button
     const exitBtnW = Math.max(80, canvas.width * 0.085);
     const exitBtnH = Math.max(40, canvas.height * 0.055);
-    const exitBtnY = canvas.height - exitBtnH - 15;
-    drawBtn("Exit", canvas.width / 2 - exitBtnW / 2, exitBtnY, exitBtnW, exitBtnH);
-
+    const exitBtnY = canvas.height - exitBtnH - 100;
+    if(numRows > 2) {
+      exitBtnX = (canvas.width / 2 - exitBtnW / 2) + 50;
+    }else {
+      exitBtnX = canvas.width / 2 - exitBtnW / 2;
+    }
+    drawBtn("Exit", exitBtnX, exitBtnY, exitBtnW, exitBtnH);
+    globalValues.exitx = exitBtnX;
+    globalValues.exity = exitBtnY;
+    globalValues.exitw = exitBtnW;
+    globalValues.exith = exitBtnH;
     // ---------- right panel ----------
     const rightW = canvas.width * 0.12;
     const rightX = centerX + centerW + canvas.width * 0.022;
     rect(canvas.width - rightW - 20, centerY, rightW, centerH, "#4b4b52", "#a78bfa", 4);
+    
+    // Draw currency box last so it appears on top
+    drawCurrencyBox();
 }
