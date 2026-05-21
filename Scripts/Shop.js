@@ -33,6 +33,9 @@ setTimeout(() => {
       mouseY >= globalValues.exity && mouseY <= globalValues.exity + globalValues.exith) {
         console.log("Exiting shop...");
           exitShop();
+          // reset rolls if <0
+          if(storedData.rolls < 0) storedData.rolls = 3;
+          if(window.localStorage.getItem("storedData")) window.localStorage.setItem("storedData", JSON.stringify(storedData));
   }
 });
 },150)

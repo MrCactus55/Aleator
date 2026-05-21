@@ -226,6 +226,14 @@
         ]
 
 
+        //antichet
+        setInterval(() => {
+            if(storedData.rolls < 0) storedData.rolls = 3;
+            if(storedData.rolls > 3) storedData.rolls = 3;
+            if(window.localStorage.storedData.rolls < 0) window.localStorage.storedData = JSON.stringify(storedData);
+        },1)
+
+
         function rollDiceRng(slotNum) {
             // roll, if slot has weight, make the number in the weight more common to roll.
             if(storedData.storedSlotWeights[slotNum] != 0){
@@ -253,13 +261,13 @@
          * - Hides the start button and draws the initial board state.
          * - Adds a small hint to the user about how to roll.
          */
-        function start_game(){
+        function start_game(x){
             gameStarted = true; // Mark game as started for responsive rendering
             shop_state = false; // Always ensure we're not in shop mode when starting game
             resizeCanvas(); // Size the canvas and set up button positions
-            document.getElementById("startGameBtn").outerHTML = ""; // remove start button
-            document.getElementById("resetGameBtn").outerHTML = ""; // remove reset button
-            document.getElementById("block").outerHTML = ""; // remove surrounding div
+            if(!x) document.getElementById("startGameBtn").outerHTML = ""; // remove start button
+            if(!x) document.getElementById("resetGameBtn").outerHTML = ""; // remove reset button
+            if(!x) document.getElementById("block").outerHTML = ""; // remove surrounding div
             
             draw_board();
             ctx.fillStyle = "white";
@@ -589,25 +597,58 @@
                                 addCurrency(parseInt(pts));
                                 // reset rolls left
                                 storedData.rolls = 0;
+                                
                                 // clear selected dice
                                 selected = {};
-
                                 storedData.currentRound += 1;
-                                if(storedData.scoring.upper + storedData.scoring.lower >= scoreTarget){
+                                let calcscore = (isNaN(([...Object.values(storedData.scoring.upper).filter(m => m!= null),0] || [0]).reduce((a,b) => a+b)) ? 0 : parseInt(([...Object.values(storedData.scoring.upper).filter(m => m!= null),0] || [0]).reduce((a,b) => a+b))) + (isNaN(([...Object.values(storedData.scoring.lower).filter(m => m!= null),0] || [0]).reduce((a,b) => a+b)) ? 0 : parseInt(([...Object.values(storedData.scoring.lower).filter(m => m!= null),0] || [0]).reduce((a,b) => a+b)));
+                                console.log("====Scores====")
+                                console.log("Calculated: "+calcscore);
+                                console.log("Target: "+scoreTarget);
+                                console.log("Met? "+(parseInt(calcscore >= scoreTarget) ? "Yes" : "No"));
+                                if(calcscore >= scoreTarget){
+                                    let oldtarget = scoreTarget;
+                                    scoreTarget = Math.ceil(scoreTarget * 1.5);
+                                        // reset rounds
+                                        storedData.currentRound = 1000000000;
+                                        // reset scores.
+                                        storedData.scoring = {
+                                            upper: {
+                                                ones: null,
+                                                twos: null,
+                                                threes: null,
+                                                fours: null,
+                                                fives: null,
+                                                sixes: null,
+                                            },
+                                            lower: {
+                                                threeOfAKind: null,
+                                                fourOfAKind: null,
+                                                fullHouse: null,
+                                                smallStraight: null,
+                                                largeStraight: null,
+                                                yahtzee: null,
+                                                chance: null,
+                                            }
+                                        };
+                                        storedData.rolls = 0;
                                     Swal.fire({
                                         backdrop: true,
                                         background: '#3f3f46',
                                         color: 'white',
                                         title: "Congratulations!",
-                                        html: `You have reached the target score of ${scoreTarget} points!<br><br>Your current score is ${Object.values(storedData.scoring.upper).filter(v => v != null).reduce((a, b) => a + b, 0) + 
-                                            Object.values(storedData.scoring.lower).filter(v => v != null).reduce((a, b) => a + b, 0)} pts.<br><br>Keep playing to reach higher scores and unlock upgrades in the shop!`,
+                                        html: `You have reached the target score of ${oldtarget} points!<br><br>Your current score is ${calcscore} pts.<br><br>Keep playing to reach higher scores and unlock upgrades in the shop!`,
                                         icon: "success",
                                         allowOutsideClick: false,
-                                    });
-                                    scoreTarget = Math.ceil(scoreTarget * 1.5);
+                                    }).then(() => {
+                                    setTimeout(() => {
+                                        draw_shop();
+                                    },250)
+                                    })
                                 }
                                 if(storedData.currentRound > 13){
                                     // Game over condition
+                                    if(storedData.currentRound < 1000) {
                                     Swal.fire({
                                         backdrop: true,
                                         background: '#3f3f46',
@@ -633,15 +674,18 @@
                                         allowOutsideClick: false,
                                     });
                                     storedData.inputEnabled = false;
+                                }
+                                    storedData.currentRound = 1;
+                                    start_game(true);
                                     return;
                                 }else{
                                 // clear current dice values
                                 
 
-                                //draw_board();
-                                setTimeout(() => {
-                                    draw_shop();
-                                },250)
+                                draw_board();
+                                //setTimeout(() => {
+                                    //draw_shop();
+                                //},250)
                             }});
                             storedData.inputEnabled = true;
                         })
